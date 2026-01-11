@@ -65,3 +65,7 @@ app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, payment_success))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 app.run_polling()
+
+print("BOT_TOKEN value:", BOT_TOKEN)
+print("BOT_TOKEN type:", type(BOT_TOKEN))
+
