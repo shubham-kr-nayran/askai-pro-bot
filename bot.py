@@ -45,8 +45,7 @@ if not GEMINI_API_KEY:
 # -------------------------------------------------
 genai.configure(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel(
-    "models/gemini-1.5-flash",
+model = genai.GenerativeModel("gemini-1.5-flash"),
     generation_config={
         "temperature": 0.5,
         "max_output_tokens": 400,  # smaller = faster
@@ -154,3 +153,5 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 logger.info("🤖 Bot polling started")
 
 app.run_polling(drop_pending_updates=True)
+
+
