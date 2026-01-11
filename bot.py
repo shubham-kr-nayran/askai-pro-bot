@@ -41,11 +41,12 @@ if not GEMINI_API_KEY:
     sys.exit("❌ GEMINI_API_KEY missing")
 
 # -------------------------------------------------
-# GEMINI SETUP (FAST MODEL)
+# GEMINI SETUP (FAST + STABLE)
 # -------------------------------------------------
 genai.configure(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-1.5-flash"),
+model = genai.GenerativeModel(
+    "gemini-1.5-flash",
     generation_config={
         "temperature": 0.5,
         "max_output_tokens": 400,  # smaller = faster
@@ -62,10 +63,10 @@ user_message_count = {}
 pending_queries = {}
 
 # -------------------------------------------------
-# AI CALL (ASYNC WRAPPER FOR SPEED)
+# ASYNC AI CALL (FASTER)
 # -------------------------------------------------
 async def generate_ai_reply(text: str) -> str:
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     response = await loop.run_in_executor(
         None, lambda: model.generate_content(text)
     )
@@ -93,7 +94,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.exception(f"❌ Gemini error: {e}")
             await update.message.reply_text(
-                "⚠️ AI is busy. Try again in a moment."
+                "⚠️ AI is busy. Please try again."
             )
         return
 
@@ -106,7 +107,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         title="AskAI Pro – AI Answer",
         description="Premium AI-powered response",
         payload=str(user_id),
-        provider_token="",   # REQUIRED EMPTY for Stars
+        provider_token="",   # REQUIRED EMPTY for Telegram Stars
         currency="XTR",
         prices=prices,
     )
@@ -118,7 +119,7 @@ async def precheckout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.pre_checkout_query.answer(ok=True)
 
 # -------------------------------------------------
-# PAYMENT SUCCESS
+# PAYMENT SUCCESS HANDLER
 # -------------------------------------------------
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -153,5 +154,3 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 logger.info("🤖 Bot polling started")
 
 app.run_polling(drop_pending_updates=True)
-
-
