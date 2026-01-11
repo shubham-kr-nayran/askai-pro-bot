@@ -12,7 +12,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-import google.generativeai as genai
+from google import genai
 
 # -------------------------------------------------
 # LOGGING
@@ -41,37 +41,35 @@ if not GEMINI_API_KEY:
     sys.exit("❌ GEMINI_API_KEY missing")
 
 # -------------------------------------------------
-# GEMINI SETUP (FAST + STABLE)
+# GEMINI CLIENT (NEW SDK)
 # -------------------------------------------------
-genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel(
-    "gemini-1.0-pro",
-    generation_config={
-        "temperature": 0.5,
-        "max_output_tokens": 400,
-    }
-)
+MODEL_NAME = "gemini-1.5-flash"
 
-
-logger.info("✅ Gemini initialized")
+logger.info("✅ Gemini client initialized")
 
 # -------------------------------------------------
-# STATE (IN-MEMORY)
+# STATE
 # -------------------------------------------------
 FREE_MESSAGES = 3
 user_message_count = {}
 pending_queries = {}
 
 # -------------------------------------------------
-# ASYNC AI CALL (FASTER)
+# ASYNC AI CALL (FAST)
 # -------------------------------------------------
 async def generate_ai_reply(text: str) -> str:
     loop = asyncio.get_running_loop()
-    response = await loop.run_in_executor(
-        None, lambda: model.generate_content(text)
-    )
-    return response.text
+
+    def call_gemini():
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=text,
+        )
+        return response.text
+
+    return await loop.run_in_executor(None, call_gemini)
 
 # -------------------------------------------------
 # MESSAGE HANDLER
@@ -95,7 +93,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.exception(f"❌ Gemini error: {e}")
             await update.message.reply_text(
-                "⚠️ AI is busy. Please try again."
+                "⚠️ AI is temporarily busy. Try again."
             )
         return
 
@@ -114,13 +112,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # -------------------------------------------------
-# PRE-CHECKOUT (MANDATORY FOR STARS)
+# PRE-CHECKOUT HANDLER
 # -------------------------------------------------
 async def precheckout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.pre_checkout_query.answer(ok=True)
 
 # -------------------------------------------------
-# PAYMENT SUCCESS HANDLER
+# PAYMENT SUCCESS
 # -------------------------------------------------
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -140,11 +138,11 @@ async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.exception(f"❌ Gemini error after payment: {e}")
         await update.message.reply_text(
-            "⚠️ AI error after payment. Please try again."
+            "⚠️ AI error after payment."
         )
 
 # -------------------------------------------------
-# START APP
+# START BOT
 # -------------------------------------------------
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
