@@ -12,7 +12,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from google import genai
+from openai import OpenAI
 
 # -------------------------------------------------
 # LOGGING
@@ -29,28 +29,28 @@ logger.info("🚀 Bot starting...")
 # ENV VARIABLES
 # -------------------------------------------------
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 logger.info(f"DEBUG BOT_TOKEN loaded: {bool(BOT_TOKEN)}")
-logger.info(f"DEBUG GEMINI_API_KEY loaded: {bool(GEMINI_API_KEY)}")
+logger.info(f"DEBUG OPENAI_API_KEY loaded: {bool(OPENAI_API_KEY)}")
 
 if not BOT_TOKEN:
     sys.exit("❌ BOT_TOKEN missing")
 
-if not GEMINI_API_KEY:
-    sys.exit("❌ GEMINI_API_KEY missing")
+if not OPENAI_API_KEY:
+    sys.exit("❌ OPENAI_API_KEY missing")
 
 # -------------------------------------------------
-# GEMINI CLIENT (NEW SDK)
+# OPENAI CLIENT (FAST + STABLE)
 # -------------------------------------------------
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gpt-4o-mini"  # fast + cheap + reliable
 
-logger.info("✅ Gemini client initialized")
+logger.info("✅ OpenAI client initialized")
 
 # -------------------------------------------------
-# STATE
+# STATE (IN-MEMORY)
 # -------------------------------------------------
 FREE_MESSAGES = 3
 user_message_count = {}
@@ -62,14 +62,25 @@ pending_queries = {}
 async def generate_ai_reply(text: str) -> str:
     loop = asyncio.get_running_loop()
 
-    def call_gemini():
-        response = client.models.generate_content(
+    def call_openai():
+        response = client.chat.completions.create(
             model=MODEL_NAME,
-            contents=text,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a helpful, concise AI assistant."
+                },
+                {
+                    "role": "user",
+                    "content": text
+                }
+            ],
+            max_tokens=300,
+            temperature=0.5,
         )
-        return response.text
+        return response.choices[0].message.content
 
-    return await loop.run_in_executor(None, call_gemini)
+    return await loop.run_in_executor(None, call_openai)
 
 # -------------------------------------------------
 # MESSAGE HANDLER
@@ -91,16 +102,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🎁 Free answer ({count+1}/{FREE_MESSAGES}):\n\n{reply}"
             )
         except Exception as e:
-            logger.exception(f"❌ Gemini error: {e}")
+            logger.exception(f"❌ OpenAI error: {e}")
             await update.message.reply_text(
-                "⚠️ AI is temporarily busy. Try again."
+                "⚠️ AI is busy. Please try again."
             )
         return
 
     # ⭐ PAID MESSAGE
     pending_queries[user_id] = text
 
-    prices = [LabeledPrice("AI Answer", 5)]  # 5 Stars
+    prices = [LabeledPrice("AI Answer", 5)]  # 5 Telegram Stars
 
     await update.message.reply_invoice(
         title="AskAI Pro – AI Answer",
@@ -112,13 +123,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # -------------------------------------------------
-# PRE-CHECKOUT HANDLER
+# PRE-CHECKOUT HANDLER (MANDATORY)
 # -------------------------------------------------
 async def precheckout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.pre_checkout_query.answer(ok=True)
 
 # -------------------------------------------------
-# PAYMENT SUCCESS
+# PAYMENT SUCCESS HANDLER
 # -------------------------------------------------
 async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -136,9 +147,9 @@ async def payment_success(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ Payment received!\n\n🤖 AI Answer:\n" + reply
         )
     except Exception as e:
-        logger.exception(f"❌ Gemini error after payment: {e}")
+        logger.exception(f"❌ OpenAI error after payment: {e}")
         await update.message.reply_text(
-            "⚠️ AI error after payment."
+            "⚠️ AI error after payment. Please try again."
         )
 
 # -------------------------------------------------
