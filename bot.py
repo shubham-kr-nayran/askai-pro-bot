@@ -6,7 +6,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-import google.generativeai as genai
+import google.genai as genai
 
 BOT_TOKEN = os.getenv("8218121021:AAFsC_7bLOdlLTbJxuT7Dj3EaLHIvkX50Nk")
 GEMINI_API_KEY = os.getenv("AIzaSyCLQeDlouTS7zAekqhzx0bvYgEWVfUrQDs")
