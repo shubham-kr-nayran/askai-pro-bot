@@ -46,12 +46,13 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 model = genai.GenerativeModel(
-    "gemini-1.5-flash",
+    "gemini-1.0-pro",
     generation_config={
         "temperature": 0.5,
-        "max_output_tokens": 400,  # smaller = faster
+        "max_output_tokens": 400,
     }
 )
+
 
 logger.info("✅ Gemini initialized")
 
